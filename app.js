@@ -1,3 +1,12 @@
+
+// basename -> PATH to start searching videos
+//var basename = "D:/Videos/";
+var basename = "G:/Fotos y videos mios (YI)/";
+
+// outputDir -> PATH to save compressed videos keeping folders' tree
+var outputDir = "D:/Comprimido/"; 
+
+
 /* Reading settings */
 // @ todo
 /*
@@ -25,34 +34,36 @@ FPS
 24000/1001
 */
 
+
 // DEPENDENCIES
 
 // fs-extra
 var fse = require('fs-extra');
 
-//      Glob
+// Glob
 var Glob = require("glob").Glob;
 
-//      ffprobe and static ffprobe
+// ffprobe and static ffprobe
 var ffprobe = require('ffprobe');
 var ffprobeStatic = require('ffprobe-static');
 
-//      HandBrake-js
+// HandBrake-js
 const hbjs = require('handbrake-js');
 
 
+var filepath = "";
+var filefolder = "";
+var filename = "";
+var outputFolder = ""
+var outputEnd = "";
 
-var basename = "D:/Videos/";
-//var basename = "G:/Fotos y videos mios (YI)/";
- var outputDir = "D:/Comprimido/"; 
-// If outputDir is defined, it will compress videos on desired path
-// If is not defined, it will delete old videos
-
-
+console.log(`=================================`);
+console.log(` outputDir set to: ${outputDir}`);
+console.log(`=================================\n`);
 
 /* Listing files */
 
-console.log(`Finding .mp4 and .MP4 files on ${basename} ...`)
+console.log(`Searching for .mp4 and .MP4 files on ${basename} ... \n`)
 var found = new Glob(
     "**/*.{mp4,MP4}",
     {
@@ -60,84 +71,76 @@ var found = new Glob(
         matchBase:true
     },
     function (err, files) {
-        var filepath = "";
-        var filefolder = "";
-        var filename = "";
-        var outputFolder = ""
-        var outputEnd = "";
-        var total = 0;
-
-        console.log("... found: ");
         
-        if(outputDir){
-            console.log('outputDir setted')
-        }
-        if(!outputDir){
-            console.log('outputDir not setted')
-        }
+        var total = 0;
+         
         files.forEach(element => {
             /* For each file found: */
 
             /* 1- Get paths */
-            filepath = basename + element;
-            console.log('filepath: ' + filepath);
-            
+            getPaths(element);
 
-            /* Set output path in each file */
-            if(outputDir) outputEnd = outputDir + element;
-            var tmp = outputEnd.split('/');
-            filename = tmp.pop();
-            outputFolder = tmp.join('/');
-            console.log(`outputFolder: ${outputFolder}`);
-
-
-            /* mkdir folders -if outputDir setted- */
-            if(outputDir){
-                fse.ensureDir(outputFolder)
-                .then(() => {
-                  console.log('success!')
-                })
-                .catch(err => {
-                  console.error(err)
-                })
-            }
+            /* 2- Create folders */
+            createDir();
+        
+            /* 3- Get video quality and set preset for each file*/
+            getQuality();
             
-            console.log('outputEnd: ' + outputEnd);
+            /* 4- Compressing by its quality */
+            compress();
             
-            /* Get video quality and set preset for each file*/
-            ffprobe( filepath , { path: ffprobeStatic.path }, function (err, info) {
-                if (err) console.log(err);
-                console.log(info.streams[0].r_frame_rate);
-            })
-            
-            /* Compressing by its quality */
-            hbjs.spawn({ input: filepath, output: outputEnd})
-                .on('error', err => {
-                    console.log(err);
-                })
-                .on('progress', progress => {
-                    console.log(
-                        'Percent complete: %s, ETA %s',
-                        progress.percentComplete,
-                        progress.eta
-                    )
-                })
-
             total++;
-            console.log('----')
         })
+        
+        console.log(`Found ${total} videos to compress.`);
+        
+    })
 
-        console.log(`Total: ${total} elements.`);
+function getPaths(element){
+    filepath = basename + element;
+    //console.log('ORIGIN filepath: ' + filepath);
+    
+    /* Set output path in each file */
+    if(outputDir) outputEnd = outputDir + element;
+    var tmp = outputEnd.split('/');
+    filename = tmp.pop();
+    outputFolder = tmp.join('/');
+    //console.log(`outputFolder: ${outputFolder}`);
 
-})
+}
+function createDir(){
+    if(outputDir){
+        fse.ensureDir(outputFolder)
+        .then(() => {
+          //console.log('success!')
+        })
+        .catch(err => {
+          console.error(err)
+        })
+    }
+}
 
-// function compress(){
+function getQuality(){
+    ffprobe( filepath , { path: ffprobeStatic.path }, function (err, info) {
+        if (err) console.log(err);
+        //console.log(info.streams[0].r_frame_rate);
+    })
+}
+    
+function compress(){
+    hbjs.spawn({ input: filepath, output: outputEnd})
+    .on('error', err => {
+        console.log(err);
+    })
+    .on('progress', progress => {
+        console.log(
+            'Percent complete: %s, ETA %s',
+            progress.percentComplete,
+            progress.eta
+        )
+    })
+}
 
-// }
-
-// function getQuality(){
-
-// }
 
 
 
