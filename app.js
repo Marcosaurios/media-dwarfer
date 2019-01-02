@@ -6,18 +6,14 @@ var basename = "G:/Fotos y videos mios (YI)/";
 // outputDir -> PATH to save compressed videos keeping folders' tree
 var outputDir = "D:/Comprimido/"; 
 
+// ----------------------------------------------
+// Problems with:
+var problempath = "G:/Fotos y videos mios (YI)/2018/2018-03-1 Kite SP/Mi película.mp4"
 
 /* Reading settings */
 // @ todo
 /*
 Presets:
-
-------
-SIZE
-------
-1920 * 1080
-
-======
 
 ------
 FPS
@@ -56,6 +52,7 @@ var filefolder = "";
 var filename = "";
 var outputFolder = ""
 var outputEnd = "";
+var savedFps = [];
 
 console.log(`=================================`);
 console.log(` outputDir set to: ${outputDir}`);
@@ -70,29 +67,37 @@ var found = new Glob(
         cwd: basename,
         matchBase:true
     },
-    function (err, files) {
+    async function (err, files) {
         
         var total = 0;
          
-        files.forEach(element => {
+        // await Promise.all(files.map( async (element) => {
+            
+        // }));
+        
+        for (const element of files) {
             /* For each file found: */
-
+    
             /* 1- Get paths */
-            getPaths(element);
-
+            await getPaths(element);
+    
             /* 2- Create folders */
-            createDir();
+            //createDir();
         
             /* 3- Get video quality and set preset for each file*/
-            getQuality();
+            console.log( (await getQuality()) );
             
             /* 4- Compressing by its quality */
-            compress();
+            //compress();
             
             total++;
-        })
+        }
+
+        // files.forEach(element => {
+        // })
         
         console.log(`Found ${total} videos to compress.`);
+        console.log(`FPS found in videos: ${savedFps}`);
         
     })
 
@@ -120,13 +125,50 @@ function createDir(){
     }
 }
 
-function getQuality(){
-    ffprobe( filepath , { path: ffprobeStatic.path }, function (err, info) {
-        if (err) console.log(err);
+async function getQuality(){
+    var fps;
+    var res;
+    await ffprobe( filepath , { path: ffprobeStatic.path })
+    .then(function (info) {
+        console.log(info.streams[0].r_frame_rate);
+        var videodata = info.streams[0].r_frame_rate;
+
+        saveData(videodata);
+        
+        switch( videodata ){
+            case '120000/1001':
+                fps = 120;
+                break;
+            case '60000/1000':
+            case '60/1':
+                fps = 60;
+                break;
+            case '60000/1001':
+                fps = 59.94;
+                break;
+            case '30/1':
+                fps = 30;
+                break;
+            case '30000/1001':
+                fps = 29.97;
+                break;
+            case '24000/1001':
+                fps = 23.97;
+                break;
+            default:
+                console.log(info);
+                console.log(filepath);
+                break;
+        }
         //console.log(info.streams[0].r_frame_rate);
     })
-}
+    .catch(function(error){
+        console.log(error);
+    })
     
+    return fps;
+}
+
 function compress(){
     hbjs.spawn({ input: filepath, output: outputEnd})
     .on('error', err => {
@@ -139,6 +181,15 @@ function compress(){
             progress.eta
         )
     })
+}
+
+function saveData(fps){
+    var flag = false;
+    var count = 0;
+    for(var i=0;i<savedFps.length;i++){
+        if(savedFps[i] != fps) count++;
+    }
+    if(count == savedFps.length) savedFps.push(fps);
 }
 
 
