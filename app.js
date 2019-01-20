@@ -1,7 +1,7 @@
 
 // basename -> PATH to start searching videos
-//var basename = "D:/Videos/";
-var basename = "G:/Fotos y videos mios (YI)/";
+var basename = "D:/Videos/";
+//var basename = "G:/Fotos y videos mios (YI)/";
 
 // outputDir -> PATH to save compressed videos keeping folders' tree
 var outputDir = "D:/Comprimido/"; 
@@ -52,7 +52,17 @@ var filefolder = "";
 var filename = "";
 var outputFolder = ""
 var outputEnd = "";
+
 var savedFps = [];
+var savedRes = [];
+
+// ------------------
+// Waiting to check
+// HandBrakeCLI --preset-import-file /path/to/preset.plist -Z "my preset"
+// ------------------
+
+var preset_import_file = './sameWidthSameFps.json'
+var preset = 'sameWidthSameFps'
 
 console.log(`=================================`);
 console.log(` outputDir set to: ${outputDir}`);
@@ -70,31 +80,44 @@ var found = new Glob(
     async function (err, files) {
         
         var total = 0;
-         
-        // await Promise.all(files.map( async (element) => {
-            
-        // }));
+
+        // ------------------        
+        // Try loading preset but not working
+        await hbjs.spawn({ 
+            "preset-import-file": "D:/media-dwarfer/sameWidthSameFps.json",
+            preset: 'sameWidthSameFps'
+        })
+        .on('start', start => {
+            console.log('-- HANDBRAKE CLI STARTED --');       
+            console.log(start);
+        })
+        .on('error', err => {
+            console.log('error');               
+            console.log(err);
+        })
+        .on('complete', output => {
+            console.log('complete')
+            console.log(` -- HANDBRAKE CLI CLOSED -- `)
+        })
         
         for (const element of files) {
             /* For each file found: */
+            console.log(element)
     
             /* 1- Get paths */
             await getPaths(element);
     
             /* 2- Create folders */
-            //createDir();
+            createDir();
         
             /* 3- Get video quality and set preset for each file*/
             console.log( (await getQuality()) );
             
             /* 4- Compressing by its quality */
-            //compress();
+            await compress();
             
             total++;
         }
-
-        // files.forEach(element => {
-        // })
         
         console.log(`Found ${total} videos to compress.`);
         console.log(`FPS found in videos: ${savedFps}`);
@@ -110,7 +133,7 @@ function getPaths(element){
     var tmp = outputEnd.split('/');
     filename = tmp.pop();
     outputFolder = tmp.join('/');
-    //console.log(`outputFolder: ${outputFolder}`);
+    console.log(`outputFolder: ${outputFolder}`);
 
 }
 function createDir(){
@@ -130,7 +153,7 @@ async function getQuality(){
     var res;
     await ffprobe( filepath , { path: ffprobeStatic.path })
     .then(function (info) {
-        console.log(info.streams[0].r_frame_rate);
+        //console.log(info.streams[0]);
         var videodata = info.streams[0].r_frame_rate;
 
         saveData(videodata);
@@ -138,6 +161,7 @@ async function getQuality(){
         switch( videodata ){
             case '120000/1001':
                 fps = 120;
+                //save()
                 break;
             case '60000/1000':
             case '60/1':
@@ -169,17 +193,43 @@ async function getQuality(){
     return fps;
 }
 
-function compress(){
-    hbjs.spawn({ input: filepath, output: outputEnd})
+async function compress(){
+    
+    await hbjs.spawn({
+
+        // ------------------ 
+        // Waiting to check       
+        //"preset-import-file": "D:/media-dwarfer/sameWidthSameFps.json",
+        //preset: 'sameWidthSameFps',
+        input: filepath,
+        output: outputEnd
+    })
+    .on('start', start => {
+        console.log('HANDBRAKE STARTED');
+        console.log(start);
+    })
     .on('error', err => {
+        console.log('error');               
         console.log(err);
     })
+    .on('begin', beg => {
+        console.log('begin');               
+        console.log(beg);
+    })
     .on('progress', progress => {
+        // process.stdout.write('Percent complete: %s, ETA %s',
+        // progress.percentComplete,
+        // progress.eta);
+
         console.log(
             'Percent complete: %s, ETA %s',
             progress.percentComplete,
             progress.eta
         )
+    })
+    .on('complete', output => {
+        console.log('complete')
+        console.log(`Video compressed`)
     })
 }
 
@@ -191,6 +241,22 @@ function saveData(fps){
     }
     if(count == savedFps.length) savedFps.push(fps);
 }
+
+// Future ideas
+// function save(res){
+//     var flag = false;
+//     var count = 0;
+//     for(var i=0;i<savedRes.length;i++){
+//         if(savedRes[i] != res) count++;
+//     }
+//     if(count == savedRes.length) savedRes.push(res);
+// }
+
+// function setPreset(fps){
+//     // switch(fps){
+//     //     case 
+//     // }
+// }
 
 
 
